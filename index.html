@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-Powered Quiz App with Dashboard</title>
+  <!-- Using Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom styles for transitions and loader */
+    .hidden { display: none; }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #4f46e5;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen font-sans p-4">
+
+  <div class="w-full max-w-2xl bg-white p-8 rounded-xl shadow-lg space-y-6">
+    
+    <!-- 1. Authentication Section -->
+    <div id="auth-container">
+        <!-- Login Form -->
+        <div id="login-form">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2 text-center">Welcome Back!</h1>
+            <p class="text-slate-500 mb-6 text-center">Please sign in to continue.</p>
+            <form id="login-form-element" class="space-y-4">
+                <input type="email" id="login-email" placeholder="Email" required class="w-full p-3 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" value="">
+                <input type="password" id="login-password" placeholder="Password" required class="w-full p-3 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" value="">
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors">Login</button>
+            </form>
+            <p id="login-error" class="text-red-500 text-sm mt-2 text-center"></p>
+            <p class="text-center text-sm text-slate-600 mt-4">
+                Don't have an account? <a href="#" id="show-signup" class="font-medium text-indigo-600 hover:underline">Sign Up</a>
+            </p>
+        </div>
+        <!-- Signup Form (Initially Hidden) -->
+        <div id="signup-form" class="hidden">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2 text-center">Create an Account</h1>
+            <p class="text-slate-500 mb-6 text-center">Join to start taking quizzes!</p>
+            <form id="signup-form-element" class="space-y-4">
+                <input type="email" id="signup-email" placeholder="Email" required class="w-full p-3 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                <input type="password" id="signup-password" placeholder="Password (min. 6 characters)" required class="w-full p-3 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors">Sign Up</button>
+            </form>
+            <p id="signup-error" class="text-red-500 text-sm mt-2 text-center"></p>
+            <p class="text-center text-sm text-slate-600 mt-4">
+                Already have an account? <a href="#" id="show-login" class="font-medium text-indigo-600 hover:underline">Login</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- User Info Header (shown when logged in) -->
+    <div id="user-info" class="hidden items-center justify-between border-b pb-4 gap-4">
+        <p class="text-slate-700 truncate">Welcome, <span id="user-email" class="font-bold"></span>!</p>
+        <div class="flex-shrink-0 flex gap-2">
+            <button id="dashboard-btn" class="bg-blue-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Dashboard</button>
+            <button id="sign-out-btn" class="bg-red-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- 2. Dashboard Section -->
+    <div id="dashboard-container" class="hidden">
+        <h2 class="text-3xl font-bold text-slate-800 mb-4">Your Progress</h2>
+        <div id="dashboard-content" class="space-y-3"></div>
+        <button id="back-to-quiz-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700">Back to Quiz</button>
+    </div>
+
+    <!-- 3. Quiz Setup Section -->
+    <div id="quiz-setup" class="hidden">
+      <h1 class="text-3xl font-bold text-slate-800 mb-2">AI-Powered Quiz!</h1>
+      <p class="text-slate-500 mb-4">Select a topic and let Gemini generate the questions for you.</p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex-1">
+          <label for="topic" class="block text-sm font-medium text-slate-600">Choose a Topic:</label>
+          <input type="text" id="topic" value="JavaScript" class="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., JavaScript, World History">
+        </div>
+        <div class="flex-1">
+          <label for="num-questions" class="block text-sm font-medium text-slate-600">Number of Questions:</label>
+          <select id="num-questions" class="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+      </div>
+      <button id="start-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 disabled:bg-indigo-400">
+        <span id="start-btn-text">Start Quiz</span>
+        <div id="loader" class="loader hidden"></div>
+      </button>
+      <p id="error-message" class="text-red-500 text-sm mt-2 text-center"></p>
+    </div>
+
+    <!-- 4. Quiz Questions Section -->
+    <div id="quiz-container" class="hidden">
+      <h2 id="quiz-topic-title" class="text-2xl font-bold text-slate-800 border-b pb-2 mb-4">Quiz Title</h2>
+      <div id="quiz-questions" class="space-y-6"></div>
+      <button id="submit-btn" class="mt-6 w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700">Submit Quiz</button>
+    </div>
+
+    <!-- 5. Results Section -->
+    <div id="results-container" class="hidden text-center">
+      <h2 class="text-3xl font-bold text-slate-800">Quiz Completed!</h2>
+      <p id="score-text" class="text-xl mt-4 text-slate-700"></p>
+      <p id="feedback-text" class="text-lg mt-2 font-medium"></p>
+      <button id="reset-btn" class="mt-6 bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700">Try Another Quiz</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Mock User Database (JSON-style) ---
+    const users = {
+        "test@example.com": {
+            password: "password123",
+            quizHistory: [
+                { topic: "World History", score: 4, total: 5, date: "2025-08-22" },
+                { topic: "Science", score: 8, total: 10, date: "2025-08-23" }
+            ]
+        }
+    };
+    let currentUser = null;
+
+    // --- DOM Elements ---
+    const authContainer = document.getElementById('auth-container');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const loginFormElement = document.getElementById('login-form-element');
+    const signupFormElement = document.getElementById('signup-form-element');
+    const showSignupBtn = document.getElementById('show-signup');
+    const showLoginBtn = document.getElementById('show-login');
+    const loginErrorElem = document.getElementById('login-error');
+    const signupErrorElem = document.getElementById('signup-error');
+
+    const userInfo = document.getElementById('user-info');
+    const userEmailElem = document.getElementById('user-email');
+    const signOutBtn = document.getElementById('sign-out-btn');
+    const dashboardBtn = document.getElementById('dashboard-btn');
+    
+    const dashboardContainer = document.getElementById('dashboard-container');
+    const dashboardContent = document.getElementById('dashboard-content');
+    const backToQuizBtn = document.getElementById('back-to-quiz-btn');
+
+    const quizSetupElem = document.getElementById('quiz-setup');
+    const quizContainerElem = document.getElementById('quiz-container');
+    const resultsContainerElem = document.getElementById('results-container');
+    const startBtn = document.getElementById('start-btn');
+    const startBtnText = document.getElementById('start-btn-text');
+    const loader = document.getElementById('loader');
+    const errorMessageElem = document.getElementById('error-message');
+    const submitBtn = document.getElementById('submit-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const quizTopicTitleElem = document.getElementById('quiz-topic-title');
+    const quizQuestionsElem = document.getElementById('quiz-questions');
+    const scoreTextElem = document.getElementById('score-text');
+    const feedbackTextElem = document.getElementById('feedback-text');
+
+    let currentQuestions = [];
+    let currentTopic = '';
+    
+    // --- Authentication & View Management ---
+    const updateAuthState = () => {
+        if (currentUser) {
+            authContainer.classList.add('hidden');
+            userInfo.classList.remove('hidden');
+            quizSetupElem.classList.remove('hidden');
+            dashboardContainer.classList.add('hidden');
+            userEmailElem.textContent = currentUser;
+        } else {
+            authContainer.classList.remove('hidden');
+            userInfo.classList.add('hidden');
+            quizSetupElem.classList.add('hidden');
+            quizContainerElem.classList.add('hidden');
+            resultsContainerElem.classList.add('hidden');
+            dashboardContainer.classList.add('hidden');
+        }
+    };
+
+    const handleSignUp = (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        signupErrorElem.textContent = '';
+
+        if (users[email]) {
+            signupErrorElem.textContent = "Email already in use.";
+            return;
+        }
+        if (password.length < 6) {
+            signupErrorElem.textContent = "Password must be at least 6 characters.";
+            return;
+        }
+
+        users[email] = { password: password, quizHistory: [] };
+        currentUser = email;
+        updateAuthState();
+    };
+
+    const handleLogin = (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        loginErrorElem.textContent = '';
+
+        if (users[email] && users[email].password === password) {
+            currentUser = email;
+            updateAuthState();
+        } else {
+            loginErrorElem.textContent = "Invalid email or password.";
+        }
+    };
+
+    const signOutUser = () => {
+        currentUser = null;
+        updateAuthState();
+    };
+
+    const showDashboard = () => {
+        quizSetupElem.classList.add('hidden');
+        quizContainerElem.classList.add('hidden');
+        resultsContainerElem.classList.add('hidden');
+        dashboardContainer.classList.remove('hidden');
+
+        const history = users[currentUser].quizHistory;
+        dashboardContent.innerHTML = ''; // Clear previous content
+
+        if (history.length === 0) {
+            dashboardContent.innerHTML = `<p class="text-slate-500 text-center">You haven't taken any quizzes yet. Start one to see your progress!</p>`;
+            return;
+        }
+
+        history.forEach(result => {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'flex justify-between items-center p-4 bg-slate-50 rounded-lg border';
+            resultDiv.innerHTML = `
+                <div>
+                    <p class="font-bold text-slate-800">${result.topic}</p>
+                    <p class="text-sm text-slate-500">Taken on ${result.date}</p>
+                </div>
+                <p class="font-semibold text-lg text-indigo-600">${result.score}/${result.total}</p>
+            `;
+            dashboardContent.appendChild(resultDiv);
+        });
+    };
+
+    const showQuizSetup = () => {
+        dashboardContainer.classList.add('hidden');
+        resultsContainerElem.classList.add('hidden');
+        quizSetupElem.classList.remove('hidden');
+        errorMessageElem.textContent = '';
+    }
+    
+    // --- Event Listeners ---
+    signupFormElement.addEventListener('submit', handleSignUp);
+    loginFormElement.addEventListener('submit', handleLogin);
+    signOutBtn.addEventListener('click', signOutUser);
+    dashboardBtn.addEventListener('click', showDashboard);
+    backToQuizBtn.addEventListener('click', showQuizSetup);
+    
+    showSignupBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginForm.classList.add('hidden');
+        signupForm.classList.remove('hidden');
+    });
+
+    showLoginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        signupForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+    });
+
+    startBtn.addEventListener('click', startQuiz);
+    submitBtn.addEventListener('click', submitQuiz);
+    resetBtn.addEventListener('click', showQuizSetup);
+
+    // --- Gemini API & Quiz Functions ---
+    async function generateQuestionsWithGemini(topic, numQuestions) {
+        // This function remains unchanged
+        const apiKey = "AIzaSyCaTvzA-TJ3laNGz2O4SZM-tDXqkk0cbw0";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const prompt = `Generate ${numQuestions} multiple-choice quiz questions about ${topic}. Each question should have 4 options. Indicate the correct answer. Return the response as a valid JSON array. Do not include any text outside of the JSON. The JSON should follow this structure: [{"question": "Your question here", "options": ["Option 1", "Option 2", "Option 3", "Option 4"], "answer": 2}] The "answer" is the zero-based index of the correct option.`;
+        const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API request failed`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) return JSON.parse(result.candidates[0].content.parts[0].text);
+            throw new Error("Invalid response structure from API.");
+        } catch (error) {
+            console.error("Error fetching from Gemini API:", error);
+            return null;
+        }
+    }
+
+    async function startQuiz() {
+      // This function remains unchanged
+      const topicInput = document.getElementById('topic').value;
+      const numQuestions = parseInt(document.getElementById('num-questions').value);
+      if (!topicInput.trim()) { errorMessageElem.textContent = "Please enter a topic."; return; }
+      startBtn.disabled = true;
+      startBtnText.textContent = 'Generating...';
+      loader.classList.remove('hidden');
+      errorMessageElem.textContent = '';
+      currentTopic = topicInput;
+      let questions = await generateQuestionsWithGemini(currentTopic, numQuestions);
+      startBtn.disabled = false;
+      startBtnText.textContent = 'Start Quiz';
+      loader.classList.add('hidden');
+      if (!questions || questions.length === 0) {
+          errorMessageElem.textContent = "Failed to generate questions. Please try again.";
+          return;
+      }
+      currentQuestions = questions;
+      quizSetupElem.classList.add('hidden');
+      quizContainerElem.classList.remove('hidden');
+      displayQuizQuestions(currentQuestions);
+    }
+
+    function displayQuizQuestions(questions) {
+      // This function remains unchanged
+      quizTopicTitleElem.textContent = `${currentTopic.charAt(0).toUpperCase() + currentTopic.slice(1)} Quiz`;
+      quizQuestionsElem.innerHTML = '';
+      questions.forEach((q, i) => {
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'p-4 border border-slate-200 rounded-lg';
+        const questionTitle = document.createElement('p');
+        questionTitle.className = 'font-semibold text-slate-800';
+        questionTitle.textContent = `Q${i + 1}. ${q.question}`;
+        questionDiv.appendChild(questionTitle);
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'mt-2 space-y-2';
+        q.options.forEach((option, idx) => {
+          const label = document.createElement('label');
+          label.className = "flex items-center gap-3 p-2 rounded-md hover:bg-slate-50 cursor-pointer";
+          const input = document.createElement('input');
+          input.type = "radio";
+          input.name = `question${i}`;
+          input.value = idx;
+          input.className = "accent-indigo-500";
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(option));
+          optionsDiv.appendChild(label);
+        });
+        questionDiv.appendChild(optionsDiv);
+        quizQuestionsElem.appendChild(questionDiv);
+      });
+    }
+
+    function submitQuiz() {
+      // This function remains unchanged
+      let score = 0;
+      currentQuestions.forEach((q, i) => {
+        const selectedOption = document.querySelector(`input[name="question${i}"]:checked`);
+        if (selectedOption && parseInt(selectedOption.value) === q.answer) score++;
+      });
+      displayResults(score, currentQuestions.length);
+    }
+
+    function displayResults(score, total) {
+      // Updated to save quiz history
+      quizContainerElem.classList.add('hidden');
+      resultsContainerElem.classList.remove('hidden');
+      scoreTextElem.textContent = `You scored ${score} out of ${total}.`;
+      
+      // Save the result to the user's history
+      const today = new Date();
+      const newResult = {
+          topic: currentTopic,
+          score: score,
+          total: total,
+          date: today.toISOString().split('T')[0] // Format as YYYY-MM-DD
+      };
+      users[currentUser].quizHistory.push(newResult);
+
+      const percentage = (score / total) * 100;
+      let feedback = '';
+      if (percentage === 100) { feedback = 'Excellent! You nailed it!'; feedbackTextElem.className = 'text-lg mt-2 font-medium text-green-600';
+      } else if (percentage >= 70) { feedback = 'Great job! You know your stuff.'; feedbackTextElem.className = 'text-lg mt-2 font-medium text-blue-600';
+      } else if (percentage >= 50) { feedback = 'Not bad! A little more practice will help.'; feedbackTextElem.className = 'text-lg mt-2 font-medium text-orange-500';
+      } else { feedback = 'Keep practicing! You can do better.'; feedbackTextElem.className = 'text-lg mt-2 font-medium text-red-500'; }
+      feedbackTextElem.textContent = feedback;
+    }
+
+  </script>
+</body>
+</html>
